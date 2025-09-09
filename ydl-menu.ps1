@@ -1,4 +1,10 @@
-# ydl-menu.ps1 — yt-dlp interactive menu with clipboard support
+# ydl-menu.ps1 — yt-dlp interactive menu (PowerShell 5.1/7)
+# Fitur:
+# - Output dipisah (mp4/mp3/thumb + single/playlist)
+# - Downloader PER DOMAIN (internal vs aria2c balanced)
+# - Cookies per situs (YouTube, Bilibili, TikTok, Instagram, Reddit, Twitter/X)
+# - Pilihan kualitas video + subtitle
+# - Clipboard & argumen -Url
 
 param(
   [string]$Url,
@@ -22,37 +28,37 @@ function Read-Choice($prompt, $choices) {
     return [int]$sel
 }
 
-function Is-YouTubePlaylist($url) {
-    if ($url -match "(^https?://)?(www\.)?youtube\.com/playlist\?list=") { return $true }
-    if ($url -match "(^https?://)?(www\.)?youtube\.com/watch\?.*?(\?|&)list=") { return $true }
-    return $false
-}
-
-function Build-SubtitleArgs($choice) {
-    switch ($choice) {
-        1 { return @("--sub-langs","id","--embed-subs","--sub-format","ass/srt/best") }
-        2 { return @("--sub-langs","en","--embed-subs","--sub-format","ass/srt/best") }
-        3 { return @("--sub-langs","ja","--embed-subs","--sub-format","ass/srt/best") }
-        default { return @("--no-write-subs") }
-    }
-}
-
 function Ensure-Tools {
-    foreach ($tool in @("yt-dlp","ffmpeg")) {
+    foreach ($tool in @("yt-dlp","ffmpeg")) {  # aria2c opsional (dipakai per-domain)
         $cmd  = Get-Command $tool -ErrorAction SilentlyContinue
         $path = if ($cmd) { $cmd.Source } else { $null }
         if (-not $path) {
-            Write-Host "`n[!] $tool tidak ditemukan di PATH. Pastikan C:\tools\yt-dlp\ berisi $tool.exe dan sudah masuk PATH." -ForegroundColor Yellow
+            Write-Host "[!] $tool tidak ditemukan di PATH. Pastikan ada di C:\tools\yt-dlp\" -ForegroundColor Yellow
         }
     }
 }
 
-Clear-Host
-Write-Host "=== yt-dlp Menu Downloader ===" -ForegroundColor Cyan
+# ====== Helper: aktifkan aria2c bila tersedia ======
+function Use-Aria2c {
+    param([string]$profile = "balanced") # balanced | aggressive
+    $aria = Get-Command "aria2c" -ErrorAction SilentlyContinue
+    if (-not $aria) {
+        Write-Host "[i] aria2c tidak ditemukan di PATH. Lanjut dengan internal downloader." -ForegroundColor DarkYellow
+        return
+    }
+    switch ($profile) {
+        "aggressive" { $args = "aria2c:-x16 -s16 -k1M --file-allocation=none" }
+        default      { $args = "aria2c:-x4 -s4 -k1M --file-allocation=none" }  # balanced
+    }
+    $script:dlArgs += @("--downloader","aria2c","--downloader-args",$args)
+    Write-Host "Downloader: aria2c ($profile)" -ForegroundColor DarkGray
+}
 
+Clear-Host
+Write-Host "=== yt-dlp Menu Downloader (domain-aware) ===" -ForegroundColor Cyan
 Ensure-Tools
 
-# 1) URL
+# ====== URL input ======
 if ($PSBoundParameters.ContainsKey('Url') -and $Url) {
     $url = $Url
 } elseif ($Clipboard) {
@@ -66,62 +72,108 @@ if ($PSBoundParameters.ContainsKey('Url') -and $Url) {
         if ($use -eq "" -or $use -match '^(y|Y)$') { $url = $clip }
     }
 }
-if (-not $url) { $url = Read-Host "Tempel link (YouTube/Instagram/Twitter/X)" }
+if (-not $url) { $url = Read-Host "Tempel link (YouTube/Bilibili/TikTok/Instagram/Reddit/Twitter)" }
 if ([string]::IsNullOrWhiteSpace($url)) { Write-Host "URL kosong. Keluar."; exit 1 }
 
-# 2) Mode
+# ====== Base args (tanpa aria2c default) ======
+$dlArgs = @(
+  "--no-mtime","--embed-metadata","--windows-filenames","--no-restrict-filenames",
+  "--merge-output-format","mp4"
+)
+
+# ====== Output base & pemisahan ======
+$base = Join-Path $HOME "Downloads/ydl"
+$null = New-Item -ItemType Directory -Force -Path "$base/mp4/single","$base/mp3/single","$base/thumb/single" -ErrorAction SilentlyContinue
+$dlArgs += @(
+  "-P","video:$base/mp4/%(playlist_title|single)s/",
+  "-P","audio:$base/mp3/%(playlist_title|single)s/",
+  "-P","thumbnail:$base/thumb/%(playlist_title|single)s/"
+)
+
+# ====== Mode ======
 $modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","MP3 (audio saja)","Thumbnail saja")
 
-# 3) Playlist handling
-$playlistArg = @()
-if (Is-YouTubePlaylist $url) {
-    Write-Host "`nTerdeteksi parameter playlist YouTube (list=)." -ForegroundColor Yellow
-    $plChoice = Read-Choice "Proses sebagai playlist?" @("Ya (semua item)","Tidak (video ini saja)")
-    if ($plChoice -eq 1) { $playlistArg = @("--yes-playlist") } else { $playlistArg = @("--no-playlist") }
-} else {
-    $playlistArg = @("--no-playlist")
+switch ($modeChoice) {
+    1 { # MP4
+    $qualityChoice = Read-Choice "Pilih kualitas MP4:" @(
+        "1) Kualitas terbaik (audio+video)",
+        "2) 1080p 60fps prioritaskan",
+        "3) 720p 60fps prioritaskan",
+        "4) 480p"
+    )
+    switch ($qualityChoice) {
+        1 { $fmt = 'bv*+ba/b' }
+        2 { $fmt = 'bv*[height=1080][fps>=50]+ba/bv*[height=1080]+ba/b' }
+        3 { $fmt = 'bv*[height=720][fps>=50]+ba/bv*[height=720]+ba/b' }
+        4 { $fmt = 'bv*[height<=480]+ba/b[height<=480]' }
+    }
+    # Tidak lagi embed thumbnail untuk MP4
+    $dlArgs += @("-f",$fmt)
+
+    $subChoice = Read-Choice "Pilih bahasa subtitle untuk di-embed:" @("Indonesia","English","Japanese","No language")
+    switch ($subChoice) {
+        1 { $dlArgs += @("--sub-langs","id","--embed-subs","--sub-format","ass/srt/best") }
+        2 { $dlArgs += @("--sub-langs","en","--embed-subs","--sub-format","ass/srt/best") }
+        3 { $dlArgs += @("--sub-langs","ja","--embed-subs","--sub-format","ass/srt/best") }
+        4 { $dlArgs += @("--no-write-subs") }
+    }
 }
 
-# 4) Opsi dasar
-$dlArgs = @("--no-mtime","--embed-metadata","--merge-output-format","mp4","--windows-filenames","--no-restrict-filenames")
-$dest = Join-Path $HOME "Downloads\ydl"
-if (!(Test-Path $dest)) { New-Item -ItemType Directory -Path $dest | Out-Null }
-$dlArgs += @("-P", $dest)
-
-switch ($modeChoice) {
-    1 {
-        $qualityChoice = Read-Choice "Pilih kualitas MP4:" @(
-            "1) Kualitas terbaik (audio+video)",
-            "2) 1080p 60fps prioritaskan",
-            "3) 720p 60fps prioritaskan",
-            "4) 480p"
-        )
-        switch ($qualityChoice) {
-            1 { $fmt = 'bv*+ba/b' }
-            2 { $fmt = 'bv*[height=1080][fps>=50]+ba/bv*[height=1080]+ba/b' }
-            3 { $fmt = 'bv*[height=720][fps>=50]+ba/bv*[height=720]+ba/b' }
-            4 { $fmt = 'bv*[height<=480]+ba/b[height<=480]' }
-        }
-        $dlArgs += @("-f",$fmt,"--embed-thumbnail")
-        $subChoice = Read-Choice "Pilih bahasa subtitle untuk di-embed:" @("Indonesia","English","Japanese","No language")
-        $dlArgs += (Build-SubtitleArgs $subChoice)
-    }
-    2 {
+    2 { # MP3
         $dlArgs += @("--extract-audio","--audio-format","mp3","--audio-quality","0","--embed-thumbnail","--add-metadata","--no-write-subs")
     }
-    3 {
+    3 { # Thumbnail only
         $dlArgs += @("--skip-download","--write-thumbnail","--no-write-subs")
     }
 }
 
-# 5) Template output
+# ====== Template nama file ======
 $dlArgs += @("-o","%(title)s [%(uploader)s] [%(id)s].%(ext)s")
 
+# ====== Cookies otomatis ======
+$cookiesDir = "C:\tools\yt-dlp\cookies"
+if (Test-Path $cookiesDir) {
+    if     ($url -match "youtube\.com|youtu\.be") { $cookie = "youtube.txt" }
+    elseif ($url -match "bilibili\.com")          { $cookie = "bilibili.txt" }
+    elseif ($url -match "tiktok\.com")            { $cookie = "tiktok.txt" }
+    elseif ($url -match "instagram\.com")         { $cookie = "instagram.txt" }
+    elseif ($url -match "reddit\.com")            { $cookie = "reddit.txt" }
+    elseif ($url -match "twitter\.com|x\.com")    { $cookie = "twitter.txt" }
+    if ($cookie) {
+        $cookiePath = Join-Path $cookiesDir $cookie
+        if (Test-Path $cookiePath) {
+            $dlArgs += @("--cookies", $cookiePath)
+            Write-Host "Menggunakan cookies: $cookiePath" -ForegroundColor DarkGray
+        } else {
+            Write-Host "[i] File cookies tidak ditemukan: $cookiePath (lanjut tanpa cookies)" -ForegroundColor DarkYellow
+        }
+    }
+}
+
+# ====== Pilih downloader berdasarkan domain ======
+$domain = $url.ToLower()
+
+if ($domain -match "twitter\.com|x\.com|reddit\.com|instagram\.com") {
+    # File tunggal cenderung cocok aria2c
+    Use-Aria2c -profile "balanced"     # -x4 -s4 -k1M
+}
+elseif ($domain -match "youtube\.com|youtu\.be|tiktok\.com|bilibili\.com") {
+    # Segmented (DASH/HLS): internal biasanya lebih cepat/stabil
+    $dlArgs += @("--concurrent-fragments","10")
+    Write-Host "Downloader: internal (concurrent fragments 10)" -ForegroundColor DarkGray
+}
+else {
+    # Default: internal
+    $dlArgs += @("--concurrent-fragments","10")
+    Write-Host "Downloader: internal (default)" -ForegroundColor DarkGray
+}
+
+# ====== Eksekusi ======
 Write-Host "`n> Menjalankan yt-dlp dengan opsi berikut:" -ForegroundColor Cyan
-$pretty = ($playlistArg + $dlArgs + @($url) | ForEach-Object { if ($_ -match '\s') { '"{0}"' -f $_ } else { $_ } }) -join ' '
+$pretty = ($dlArgs + @($url) | ForEach-Object { if ($_ -match '\s') { '"{0}"' -f $_ } else { $_ } }) -join ' '
 Write-Host ("yt-dlp " + $pretty)
 
-& yt-dlp @playlistArg @dlArgs $url
+& yt-dlp @dlArgs $url
 $ec = $LASTEXITCODE
 Write-Host "`nSelesai. ExitCode: $ec"
-if ($ec -ne 0) { Write-Host "Ada error. Tambahkan --verbose untuk detail." -ForegroundColor Yellow }
+if ($ec -ne 0) { Write-Host "Ada error. Coba tambahkan --verbose untuk detail." -ForegroundColor Yellow }

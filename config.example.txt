@@ -1,0 +1,8 @@
+# Contoh %APPDATA%\yt-dlp\config.txt (opsional)
+--no-mtime
+--embed-metadata
+--merge-output-format mp4
+--windows-filenames
+--no-restrict-filenames
+# Template default (script akan override sendiri)
+-o "%(title)s [%(uploader)s] [%(id)s].%(ext)s"

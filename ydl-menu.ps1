@@ -1,6 +1,6 @@
 # ydl-menu.ps1 — yt-dlp interactive menu (PowerShell 5.1/7)
 # Fitur:
-# - Output dipisah (mp4/mp3/thumb + single/playlist)
+# - Output dipisah (mp4/webm/mp3/m4a/thumb + single/playlist)
 # - Downloader PER DOMAIN (internal vs aria2c balanced)
 # - Cookies per situs (YouTube, Bilibili, TikTok, Instagram, Reddit, Twitter/X, SoundCloud, Facebook, Twitch)
 # - Pilihan kualitas video + subtitle
@@ -82,14 +82,13 @@ $dlArgs = @(
 
 # ====== Output base & pemisahan ======
 $base = Join-Path $HOME "Downloads/ydl"
-$null = New-Item -ItemType Directory -Force -Path "$base/mp4/single","$base/webm/single","$base/mp3/single","$base/thumb/single" -ErrorAction SilentlyContinue
+$null = New-Item -ItemType Directory -Force -Path "$base/mp4/single","$base/webm/single","$base/mp3/single","$base/m4a/single","$base/thumb/single" -ErrorAction SilentlyContinue
 $dlArgs += @(
-  "-P","audio:$base/mp3/%(playlist_title|single)s/",
   "-P","thumbnail:$base/thumb/%(playlist_title|single)s/"
 )
 
 # ====== Mode ======
-$modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","WEBM (video)","MP3 (audio saja)","Thumbnail saja")
+$modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","WEBM (video)","MP3 (audio saja)","M4A (audio saja)","Thumbnail saja")
 
 switch ($modeChoice) {
     1 { # MP4
@@ -167,9 +166,20 @@ switch ($modeChoice) {
     }
 
     3 { # MP3
-        $dlArgs += @("--extract-audio","--audio-format","mp3","--audio-quality","0","--embed-thumbnail","--add-metadata","--no-write-subs")
+        $dlArgs += @(
+            "--extract-audio","--audio-format","mp3","--audio-quality","0",
+            "--embed-thumbnail","--add-metadata","--no-write-subs",
+            "-P","audio:$base/mp3/%(playlist_title|single)s/"
+        )
     }
-    4 { # Thumbnail only
+    4 { # M4A
+        $dlArgs += @(
+            "--extract-audio","--audio-format","m4a","--audio-quality","0",
+            "--embed-thumbnail","--add-metadata","--no-write-subs",
+            "-P","audio:$base/m4a/%(playlist_title|single)s/"
+        )
+    }
+    5 { # Thumbnail only
         $dlArgs += @("--skip-download","--write-thumbnail","--no-write-subs")
     }
 }

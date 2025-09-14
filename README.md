@@ -1,14 +1,14 @@
 # ydl-menu (PowerShell) — Final Version
 
 Menu interaktif **yt-dlp** untuk Windows, dengan fitur:
-- Output dipisah otomatis (mp4/mp3/thumb + single/playlist)
+- Output dipisah otomatis (mp4/webm/mp3/thumb + single/playlist)
 - Downloader per domain (YouTube/TikTok/Bilibili/Facebook/Twitch → internal, Twitter/Reddit/Instagram/SoundCloud → aria2c)
-- **MP4 tidak lagi embed thumbnail** (supaya tidak spam log)
+- **MP4/WebM tidak lagi embed thumbnail** (supaya tidak spam log)
 - **MP3 tetap embed thumbnail** (jadi ada cover art)
 - Cookies per situs (YouTube / Bilibili / TikTok / Instagram / Reddit / Twitter/X / SoundCloud / Facebook / Twitch)
-- Pilihan kualitas video (best / 1080p60 / 720p60 / 480p) + subtitle (id/en/ja/none)
+- Pilihan format & kualitas video (MP4/WebM: best / 1080p60 / 720p60 / 480p) + subtitle (id/en/ja/none)
 - Mendukung clipboard & argumen URL
-- Video MP4 <1 menit (single) otomatis kualitas terbaik
+- Video <1 menit (single) otomatis kualitas terbaik
 
 ---
 
@@ -61,6 +61,12 @@ Downloads\ydl\
  │   └─ Nama Playlist\
  │       ├─ Video1.mp4
  │       └─ Video2.mp4
+ ├─ webm\
+ │   ├─ single\
+ │   │   └─ Judul Video.webm
+ │   └─ Nama Playlist\
+ │       ├─ Video1.webm
+ │       └─ Video2.webm
  ├─ mp3\
  │   ├─ single\
  │   │   └─ Judul Video.mp3 (dengan cover art)

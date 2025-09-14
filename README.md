@@ -4,12 +4,12 @@ Menu interaktif **yt-dlp** untuk Windows, dengan fitur:
 - Output dipisah otomatis (mp4/webm/mp3/m4a/thumb + single/playlist)
 - Downloader per domain (YouTube/TikTok/Bilibili/Facebook/Twitch → internal, Twitter/Reddit/Instagram/SoundCloud → aria2c)
 - **MP4/WebM tidak lagi embed thumbnail** (supaya tidak spam log)
-- **MP3/M4A tetap embed thumbnail** (jadi ada cover art)
+- **MP3/M4A embed thumbnail PNG** (jadi ada cover art)
 - Cookies per situs (YouTube / Bilibili / TikTok / Instagram / Reddit / Twitter/X / SoundCloud / Facebook / Twitch)
 - Pilihan format & kualitas video (MP4/WebM: best / 1080p60 / 720p60 / 480p) + subtitle (id/en/ja/none)
 - Mendukung clipboard & argumen URL
 - Video <1 menit (single) otomatis kualitas terbaik
-- Opsi thumbnail: ambil thumbnail bawaan atau frame video pada waktu tertentu (ffmpeg)
+- Opsi thumbnail: ambil thumbnail bawaan (JPEG) atau frame video pada waktu tertentu (ffmpeg)
 
 ---
 

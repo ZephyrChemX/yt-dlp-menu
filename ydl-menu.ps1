@@ -95,17 +95,29 @@ $modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","MP3 (audio saja
 
 switch ($modeChoice) {
     1 { # MP4
-    $qualityChoice = Read-Choice "Pilih kualitas MP4:" @(
-        "1) Kualitas terbaik (audio+video)",
-        "2) 1080p 60fps prioritaskan",
-        "3) 720p 60fps prioritaskan",
-        "4) 480p"
-    )
-    switch ($qualityChoice) {
-        1 { $fmt = 'bv*+ba/b' }
-        2 { $fmt = 'bv*[height=1080][fps>=50]+ba/bv*[height=1080]+ba/b' }
-        3 { $fmt = 'bv*[height=720][fps>=50]+ba/bv*[height=720]+ba/b' }
-        4 { $fmt = 'bv*[height<=480]+ba/b[height<=480]' }
+    $autoBest = $false
+    try {
+        $infoJson = yt-dlp --dump-single-json --no-warnings $url 2>$null
+        $info = $infoJson | ConvertFrom-Json
+        if ($info._type -eq 'video' -and $info.duration -lt 60) {
+            $autoBest = $true
+            $fmt = 'bv*+ba/b'
+            Write-Host "Durasi < 60 detik, memakai kualitas terbaik otomatis." -ForegroundColor DarkGray
+        }
+    } catch {}
+    if (-not $autoBest) {
+        $qualityChoice = Read-Choice "Pilih kualitas MP4:" @(
+            "1) Kualitas terbaik (audio+video)",
+            "2) 1080p 60fps prioritaskan",
+            "3) 720p 60fps prioritaskan",
+            "4) 480p"
+        )
+        switch ($qualityChoice) {
+            1 { $fmt = 'bv*+ba/b' }
+            2 { $fmt = 'bv*[height=1080][fps>=50]+ba/bv*[height=1080]+ba/b' }
+            3 { $fmt = 'bv*[height=720][fps>=50]+ba/bv*[height=720]+ba/b' }
+            4 { $fmt = 'bv*[height<=480]+ba/b[height<=480]' }
+        }
     }
     # Tidak lagi embed thumbnail untuk MP4
     $dlArgs += @("-f",$fmt)

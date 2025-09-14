@@ -8,6 +8,7 @@ Menu interaktif **yt-dlp** untuk Windows, dengan fitur:
 - Cookies per situs (YouTube / Bilibili / TikTok / Instagram / Reddit / Twitter/X / SoundCloud / Facebook / Twitch)
 - Pilihan kualitas video (best / 1080p60 / 720p60 / 480p) + subtitle (id/en/ja/none)
 - Mendukung clipboard & argumen URL
+- Video MP4 <1 menit (single) otomatis kualitas terbaik
 
 ---
 

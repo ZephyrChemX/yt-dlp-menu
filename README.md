@@ -11,6 +11,7 @@ Menu interaktif **yt-dlp** untuk Windows, dengan fitur:
 - Video <1 menit (single) otomatis kualitas terbaik
 - Opsi thumbnail: ambil thumbnail bawaan atau frame video pada waktu tertentu (ffmpeg)
 
+
 ---
 
 ## ✨ Prasyarat

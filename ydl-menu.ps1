@@ -190,7 +190,10 @@ switch ($modeChoice) {
             }
             2 {
                 $time = Read-Host "Masukkan waktu (detik atau mm:ss)"
-                $execCmd = "ffmpeg -ss $time -i \"%(filepath)s\" -frames:v 1 \"%(filepath)s.jpg\" && ren \"%(filepath)s.jpg\" \"%(filename)s.jpg\" && del \"%(filepath)s\""
+
+                $execCmd = @"
+ffmpeg -ss $time -i "%(filepath)s" -frames:v 1 "%(filepath)s.jpg" && ren "%(filepath)s.jpg" "%(filename)s.jpg" && del "%(filepath)s"
+"@.Trim()
                 $outputOverride = "$base/thumb/%(playlist_title|single)s/%(title)s [%(uploader)s] [%(id)s].%(ext)s"
                 $dlArgs += @("--merge-output-format","mp4","--no-write-subs","-f","bv*+ba/b","--exec",$execCmd)
             }

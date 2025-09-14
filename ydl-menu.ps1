@@ -28,16 +28,6 @@ function Read-Choice($prompt, $choices) {
     return [int]$sel
 }
 
-function Ensure-Tools {
-    foreach ($tool in @("yt-dlp","ffmpeg")) {  # aria2c opsional (dipakai per-domain)
-        $cmd  = Get-Command $tool -ErrorAction SilentlyContinue
-        $path = if ($cmd) { $cmd.Source } else { $null }
-        if (-not $path) {
-            Write-Host "[!] $tool tidak ditemukan di PATH. Pastikan ada di C:\tools\yt-dlp\" -ForegroundColor Yellow
-        }
-    }
-}
-
 # ====== Helper: aktifkan aria2c bila tersedia ======
 function Use-Aria2c {
     param([string]$profile = "balanced") # balanced | aggressive
@@ -56,7 +46,6 @@ function Use-Aria2c {
 
 Clear-Host
 Write-Host "=== yt-dlp Menu Downloader (domain-aware) ===" -ForegroundColor Cyan
-Ensure-Tools
 
 # ====== URL input ======
 if ($PSBoundParameters.ContainsKey('Url') -and $Url) {
@@ -84,7 +73,8 @@ $thumbFrame = $null
 
 # ====== Output base & pemisahan ======
 $base = Join-Path $HOME "Downloads/ydl"
-$null = New-Item -ItemType Directory -Force -Path "$base/mp4/single","$base/webm/single","$base/mp3/single","$base/m4a/single","$base/thumb/single" -ErrorAction SilentlyContinue
+$dirs = "$base/mp4/single","$base/webm/single","$base/mp3/single","$base/m4a/single","$base/thumb/single"
+$null = New-Item -ItemType Directory -Force -Path $dirs -ErrorAction SilentlyContinue
 $dlArgs += @(
   "-P","thumbnail:$base/thumb/%(playlist_title|single)s/"
 )
@@ -191,9 +181,7 @@ switch ($modeChoice) {
             2 {
                 $time = Read-Host "Masukkan waktu (detik atau mm:ss)"
 
-                $execCmd = @"
-ffmpeg -ss $time -i "%(filepath)s" -frames:v 1 "%(filepath)s.jpg" && ren "%(filepath)s.jpg" "%(filename)s.jpg" && del "%(filepath)s"
-"@.Trim()
+                $execCmd = "ffmpeg -ss $time -i %(filepath)q -frames:v 1 `"%(filepath)s.jpg`" && ren `"%(filepath)s.jpg`" `"%(filename)s.jpg`" && del %(filepath)q"
                 $outputOverride = "$base/thumb/%(playlist_title|single)s/%(title)s [%(uploader)s] [%(id)s].%(ext)s"
                 $dlArgs += @("--merge-output-format","mp4","--no-write-subs","-f","bv*+ba/b","--exec",$execCmd)
             }

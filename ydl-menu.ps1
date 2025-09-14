@@ -78,63 +78,98 @@ if ([string]::IsNullOrWhiteSpace($url)) { Write-Host "URL kosong. Keluar."; exit
 # ====== Base args (tanpa aria2c default) ======
 $dlArgs = @(
   "--no-mtime","--embed-metadata","--windows-filenames","--no-restrict-filenames",
-  "--merge-output-format","mp4"
 )
 
 # ====== Output base & pemisahan ======
 $base = Join-Path $HOME "Downloads/ydl"
-$null = New-Item -ItemType Directory -Force -Path "$base/mp4/single","$base/mp3/single","$base/thumb/single" -ErrorAction SilentlyContinue
+$null = New-Item -ItemType Directory -Force -Path "$base/mp4/single","$base/webm/single","$base/mp3/single","$base/thumb/single" -ErrorAction SilentlyContinue
 $dlArgs += @(
-  "-P","video:$base/mp4/%(playlist_title|single)s/",
   "-P","audio:$base/mp3/%(playlist_title|single)s/",
   "-P","thumbnail:$base/thumb/%(playlist_title|single)s/"
 )
 
 # ====== Mode ======
-$modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","MP3 (audio saja)","Thumbnail saja")
+$modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","WEBM (video)","MP3 (audio saja)","Thumbnail saja")
 
 switch ($modeChoice) {
     1 { # MP4
-    $autoBest = $false
-    try {
-        $infoJson = yt-dlp --dump-single-json --no-warnings $url 2>$null
-        $info = $infoJson | ConvertFrom-Json
-        if ($info._type -eq 'video' -and $info.duration -lt 60) {
-            $autoBest = $true
-            $fmt = 'bv*+ba/b'
-            Write-Host "Durasi < 60 detik, memakai kualitas terbaik otomatis." -ForegroundColor DarkGray
+        $dlArgs += @("--merge-output-format","mp4","-P","video:$base/mp4/%(playlist_title|single)s/")
+        $autoBest = $false
+        try {
+            $infoJson = yt-dlp --dump-single-json --no-warnings $url 2>$null
+            $info = $infoJson | ConvertFrom-Json
+            if ($info._type -eq 'video' -and $info.duration -lt 60) {
+                $autoBest = $true
+                $fmt = 'bv*+ba/b'
+                Write-Host "Durasi < 60 detik, memakai kualitas terbaik otomatis." -ForegroundColor DarkGray
+            }
+        } catch {}
+        if (-not $autoBest) {
+            $qualityChoice = Read-Choice "Pilih kualitas MP4:" @(
+                "1) Kualitas terbaik (audio+video)",
+                "2) 1080p 60fps prioritaskan",
+                "3) 720p 60fps prioritaskan",
+                "4) 480p"
+            )
+            switch ($qualityChoice) {
+                1 { $fmt = 'bv*+ba/b' }
+                2 { $fmt = 'bv*[height=1080][fps>=50]+ba/bv*[height=1080]+ba/b' }
+                3 { $fmt = 'bv*[height=720][fps>=50]+ba/bv*[height=720]+ba/b' }
+                4 { $fmt = 'bv*[height<=480]+ba/b[height<=480]' }
+            }
         }
-    } catch {}
-    if (-not $autoBest) {
-        $qualityChoice = Read-Choice "Pilih kualitas MP4:" @(
-            "1) Kualitas terbaik (audio+video)",
-            "2) 1080p 60fps prioritaskan",
-            "3) 720p 60fps prioritaskan",
-            "4) 480p"
-        )
-        switch ($qualityChoice) {
-            1 { $fmt = 'bv*+ba/b' }
-            2 { $fmt = 'bv*[height=1080][fps>=50]+ba/bv*[height=1080]+ba/b' }
-            3 { $fmt = 'bv*[height=720][fps>=50]+ba/bv*[height=720]+ba/b' }
-            4 { $fmt = 'bv*[height<=480]+ba/b[height<=480]' }
+        $dlArgs += @("-f",$fmt)
+
+        $subChoice = Read-Choice "Pilih bahasa subtitle untuk di-embed:" @("Indonesia","English","Japanese","No language")
+        switch ($subChoice) {
+            1 { $dlArgs += @("--sub-langs","id","--embed-subs","--sub-format","ass/srt/best") }
+            2 { $dlArgs += @("--sub-langs","en","--embed-subs","--sub-format","ass/srt/best") }
+            3 { $dlArgs += @("--sub-langs","ja","--embed-subs","--sub-format","ass/srt/best") }
+            4 { $dlArgs += @("--no-write-subs") }
         }
     }
-    # Tidak lagi embed thumbnail untuk MP4
-    $dlArgs += @("-f",$fmt)
 
-    $subChoice = Read-Choice "Pilih bahasa subtitle untuk di-embed:" @("Indonesia","English","Japanese","No language")
-    switch ($subChoice) {
-        1 { $dlArgs += @("--sub-langs","id","--embed-subs","--sub-format","ass/srt/best") }
-        2 { $dlArgs += @("--sub-langs","en","--embed-subs","--sub-format","ass/srt/best") }
-        3 { $dlArgs += @("--sub-langs","ja","--embed-subs","--sub-format","ass/srt/best") }
-        4 { $dlArgs += @("--no-write-subs") }
+    2 { # WEBM
+        $dlArgs += @("--merge-output-format","webm","-P","video:$base/webm/%(playlist_title|single)s/")
+        $autoBest = $false
+        try {
+            $infoJson = yt-dlp --dump-single-json --no-warnings $url 2>$null
+            $info = $infoJson | ConvertFrom-Json
+            if ($info._type -eq 'video' -and $info.duration -lt 60) {
+                $autoBest = $true
+                $fmt = 'bv*[ext=webm]+ba[ext=webm]/b[ext=webm]'
+                Write-Host "Durasi < 60 detik, memakai kualitas terbaik otomatis." -ForegroundColor DarkGray
+            }
+        } catch {}
+        if (-not $autoBest) {
+            $qualityChoice = Read-Choice "Pilih kualitas WEBM:" @(
+                "1) Kualitas terbaik (audio+video)",
+                "2) 1080p 60fps prioritaskan",
+                "3) 720p 60fps prioritaskan",
+                "4) 480p"
+            )
+            switch ($qualityChoice) {
+                1 { $fmt = 'bv*[ext=webm]+ba[ext=webm]/b[ext=webm]' }
+                2 { $fmt = 'bv*[height=1080][fps>=50][ext=webm]+ba[ext=webm]/bv*[height=1080][ext=webm]+ba[ext=webm]/b[height=1080][ext=webm]' }
+                3 { $fmt = 'bv*[height=720][fps>=50][ext=webm]+ba[ext=webm]/bv*[height=720][ext=webm]+ba[ext=webm]/b[height=720][ext=webm]' }
+                4 { $fmt = 'bv*[height<=480][ext=webm]+ba[ext=webm]/b[height<=480][ext=webm]' }
+            }
+        }
+        $dlArgs += @("-f",$fmt)
+
+        $subChoice = Read-Choice "Pilih bahasa subtitle untuk di-embed:" @("Indonesia","English","Japanese","No language")
+        switch ($subChoice) {
+            1 { $dlArgs += @("--sub-langs","id","--embed-subs","--sub-format","ass/srt/best") }
+            2 { $dlArgs += @("--sub-langs","en","--embed-subs","--sub-format","ass/srt/best") }
+            3 { $dlArgs += @("--sub-langs","ja","--embed-subs","--sub-format","ass/srt/best") }
+            4 { $dlArgs += @("--no-write-subs") }
+        }
     }
-}
 
-    2 { # MP3
+    3 { # MP3
         $dlArgs += @("--extract-audio","--audio-format","mp3","--audio-quality","0","--embed-thumbnail","--add-metadata","--no-write-subs")
     }
-    3 { # Thumbnail only
+    4 { # Thumbnail only
         $dlArgs += @("--skip-download","--write-thumbnail","--no-write-subs")
     }
 }

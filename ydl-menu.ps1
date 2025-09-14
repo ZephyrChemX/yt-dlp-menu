@@ -77,7 +77,7 @@ if ([string]::IsNullOrWhiteSpace($url)) { Write-Host "URL kosong. Keluar."; exit
 
 # ====== Base args (tanpa aria2c default) ======
 $dlArgs = @(
-  "--no-mtime","--embed-metadata","--windows-filenames","--no-restrict-filenames",
+  "--no-mtime","--embed-metadata","--windows-filenames","--no-restrict-filenames"
 )
 
 # ====== Output base & pemisahan ======
@@ -88,6 +88,7 @@ $dlArgs += @(
 )
 
 # ====== Mode ======
+$outputOverride = $null
 $modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","WEBM (video)","MP3 (audio saja)","M4A (audio saja)","Thumbnail saja")
 
 switch ($modeChoice) {
@@ -180,12 +181,29 @@ switch ($modeChoice) {
         )
     }
     5 { # Thumbnail only
-        $dlArgs += @("--skip-download","--write-thumbnail","--no-write-subs")
+        $thumbChoice = Read-Choice "Pilih jenis thumbnail:" @("Thumbnail default","Thumbnail dari durasi tertentu")
+        switch ($thumbChoice) {
+            1 {
+                $dlArgs += @("--skip-download","--write-thumbnail","--no-write-subs")
+            }
+            2 {
+                $time = Read-Host "Masukkan waktu (detik atau mm:ss)"
+                $execCmd = @"
+ffmpeg -ss $time -i "%(filepath)s" -frames:v 1 "%(filepath)s.jpg" && ren "%(filepath)s.jpg" "%(filename)s.jpg" && del "%(filepath)s"
+"@.Trim()
+                $outputOverride = "$base/thumb/%(playlist_title|single)s/%(title)s [%(uploader)s] [%(id)s].%(ext)s"
+                $dlArgs += @("--merge-output-format","mp4","--no-write-subs","-f","bv*+ba/b","--exec",$execCmd)
+            }
+        }
     }
 }
 
 # ====== Template nama file ======
-$dlArgs += @("-o","%(title)s [%(uploader)s] [%(id)s].%(ext)s")
+if ($outputOverride) {
+    $dlArgs += @("-o",$outputOverride)
+} else {
+    $dlArgs += @("-o","%(title)s [%(uploader)s] [%(id)s].%(ext)s")
+}
 
 # ====== Cookies otomatis ======
 $cookiesDir = "C:\tools\yt-dlp\cookies"

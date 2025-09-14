@@ -156,14 +156,14 @@ switch ($modeChoice) {
     3 { # MP3
         $dlArgs += @(
             "--extract-audio","--audio-format","mp3","--audio-quality","0",
-            "--embed-thumbnail","--add-metadata","--no-write-subs",
+            "--embed-thumbnail","--convert-thumbnails","png","--add-metadata","--no-write-subs",
             "-P","audio:$base/mp3/%(playlist_title|single)s/"
         )
     }
     4 { # M4A
         $dlArgs += @(
             "--extract-audio","--audio-format","m4a","--audio-quality","0",
-            "--embed-thumbnail","--add-metadata","--no-write-subs",
+            "--embed-thumbnail","--convert-thumbnails","png","--add-metadata","--no-write-subs",
             "-P","audio:$base/m4a/%(playlist_title|single)s/"
         )
     }
@@ -172,7 +172,7 @@ switch ($modeChoice) {
         switch ($thumbChoice) {
             1 {
                 $dlArgs += @(
-                    "--skip-download","--write-thumbnail","--no-write-subs",
+                    "--skip-download","--write-thumbnail","--convert-thumbnails","jpg","--no-write-subs",
                     "-P","thumbnail:$base/thumb/%(playlist_title|single)s/"
                 )
             }

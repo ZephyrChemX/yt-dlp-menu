@@ -2,7 +2,7 @@
 # Fitur:
 # - Output dipisah (mp4/mp3/thumb + single/playlist)
 # - Downloader PER DOMAIN (internal vs aria2c balanced)
-# - Cookies per situs (YouTube, Bilibili, TikTok, Instagram, Reddit, Twitter/X)
+# - Cookies per situs (YouTube, Bilibili, TikTok, Instagram, Reddit, Twitter/X, SoundCloud, Facebook, Twitch)
 # - Pilihan kualitas video + subtitle
 # - Clipboard & argumen -Url
 
@@ -72,7 +72,7 @@ if ($PSBoundParameters.ContainsKey('Url') -and $Url) {
         if ($use -eq "" -or $use -match '^(y|Y)$') { $url = $clip }
     }
 }
-if (-not $url) { $url = Read-Host "Tempel link (YouTube/Bilibili/TikTok/Instagram/Reddit/Twitter)" }
+if (-not $url) { $url = Read-Host "Tempel link (YouTube/Bilibili/TikTok/Instagram/Reddit/Twitter/SoundCloud/Facebook/Twitch)" }
 if ([string]::IsNullOrWhiteSpace($url)) { Write-Host "URL kosong. Keluar."; exit 1 }
 
 # ====== Base args (tanpa aria2c default) ======
@@ -139,6 +139,9 @@ if (Test-Path $cookiesDir) {
     elseif ($url -match "instagram\.com")         { $cookie = "instagram.txt" }
     elseif ($url -match "reddit\.com")            { $cookie = "reddit.txt" }
     elseif ($url -match "twitter\.com|x\.com")    { $cookie = "twitter.txt" }
+    elseif ($url -match "soundcloud\.com")        { $cookie = "soundcloud.txt" }
+    elseif ($url -match "facebook\.com|fb\.watch") { $cookie = "facebook.txt" }
+    elseif ($url -match "twitch\.tv")             { $cookie = "twitch.txt" }
     if ($cookie) {
         $cookiePath = Join-Path $cookiesDir $cookie
         if (Test-Path $cookiePath) {
@@ -153,11 +156,11 @@ if (Test-Path $cookiesDir) {
 # ====== Pilih downloader berdasarkan domain ======
 $domain = $url.ToLower()
 
-if ($domain -match "twitter\.com|x\.com|reddit\.com|instagram\.com") {
+if ($domain -match "twitter\.com|x\.com|reddit\.com|instagram\.com|soundcloud\.com") {
     # File tunggal cenderung cocok aria2c
     Use-Aria2c -profile "balanced"     # -x4 -s4 -k1M
 }
-elseif ($domain -match "youtube\.com|youtu\.be|tiktok\.com|bilibili\.com") {
+elseif ($domain -match "youtube\.com|youtu\.be|tiktok\.com|bilibili\.com|facebook\.com|fb\.watch|twitch\.tv") {
     # Segmented (DASH/HLS): internal biasanya lebih cepat/stabil
     $dlArgs += @("--concurrent-fragments","10")
     Write-Host "Downloader: internal (concurrent fragments 10)" -ForegroundColor DarkGray

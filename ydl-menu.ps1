@@ -80,6 +80,8 @@ $dlArgs = @(
   "--no-mtime","--embed-metadata","--windows-filenames","--no-restrict-filenames",
 )
 
+$thumbFrame = $null
+
 # ====== Output base & pemisahan ======
 $base = Join-Path $HOME "Downloads/ydl"
 $null = New-Item -ItemType Directory -Force -Path "$base/mp4/single","$base/webm/single","$base/mp3/single","$base/m4a/single","$base/thumb/single" -ErrorAction SilentlyContinue
@@ -180,7 +182,13 @@ switch ($modeChoice) {
         )
     }
     5 { # Thumbnail only
-        $dlArgs += @("--skip-download","--write-thumbnail","--no-write-subs")
+        $thumbMode = Read-Choice "Pilih thumbnail:" @("Bawaan situs","Frame dari waktu tertentu")
+        if ($thumbMode -eq 1) {
+            $dlArgs += @("--skip-download","--write-thumbnail","--no-write-subs")
+        } else {
+            $thumbFrame = Read-Host "Masukkan waktu (detik atau HH:MM:SS)"
+            $dlArgs += @("--no-write-subs")
+        }
     }
 }
 
@@ -229,11 +237,32 @@ else {
 }
 
 # ====== Eksekusi ======
-Write-Host "`n> Menjalankan yt-dlp dengan opsi berikut:" -ForegroundColor Cyan
-$pretty = ($dlArgs + @($url) | ForEach-Object { if ($_ -match '\s') { '"{0}"' -f $_ } else { $_ } }) -join ' '
-Write-Host ("yt-dlp " + $pretty)
-
-& yt-dlp @dlArgs $url
-$ec = $LASTEXITCODE
-Write-Host "`nSelesai. ExitCode: $ec"
-if ($ec -ne 0) { Write-Host "Ada error. Coba tambahkan --verbose untuk detail." -ForegroundColor Yellow }
+if ($thumbFrame) {
+    Write-Host "`n> Mengambil thumbnail dari durasi $thumbFrame" -ForegroundColor Cyan
+    $tmpBase   = [IO.Path]::GetTempFileName()
+    $manualArgs = $dlArgs + @("-f","bestvideo","-o",$tmpBase + ".%(ext)s")
+    $pretty = ($manualArgs + @($url) | ForEach-Object { if ($_ -match '\s') { '"{0}"' -f $_ } else { $_ } }) -join ' '
+    Write-Host ("yt-dlp " + $pretty)
+    & yt-dlp @manualArgs $url
+    $videoFile = Get-ChildItem ($tmpBase + ".*") | Select-Object -First 1 -ExpandProperty FullName
+    $infoJson = yt-dlp --dump-single-json --no-warnings $url 2>$null
+    $info     = $infoJson | ConvertFrom-Json
+    $folder   = if ($info.playlist_title) { $info.playlist_title } else { "single" }
+    $name     = "{0} [{1}] [{2}]" -f $info.title, $info.uploader, $info.id
+    $outDir   = Join-Path $base "thumb/$folder"
+    $null     = New-Item -ItemType Directory -Force -Path $outDir
+    $outFile  = Join-Path $outDir ($name + ".jpg")
+    ffmpeg -ss $thumbFrame -i $videoFile -vframes 1 $outFile
+    $ec = $LASTEXITCODE
+    Remove-Item ($tmpBase + ".*") -Force
+    Write-Host "`nSelesai. ExitCode: $ec"
+    if ($ec -ne 0) { Write-Host "Ada error. Coba tambahkan --verbose untuk detail." -ForegroundColor Yellow }
+} else {
+    Write-Host "`n> Menjalankan yt-dlp dengan opsi berikut:" -ForegroundColor Cyan
+    $pretty = ($dlArgs + @($url) | ForEach-Object { if ($_ -match '\s') { '"{0}"' -f $_ } else { $_ } }) -join ' '
+    Write-Host ("yt-dlp " + $pretty)
+    & yt-dlp @dlArgs $url
+    $ec = $LASTEXITCODE
+    Write-Host "`nSelesai. ExitCode: $ec"
+    if ($ec -ne 0) { Write-Host "Ada error. Coba tambahkan --verbose untuk detail." -ForegroundColor Yellow }
+}

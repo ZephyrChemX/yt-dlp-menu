@@ -2,10 +2,10 @@
 
 Menu interaktif **yt-dlp** untuk Windows, dengan fitur:
 - Output dipisah otomatis (mp4/mp3/thumb + single/playlist)
-- Downloader per domain (YouTube/TikTok/Bilibili → internal, Twitter/Reddit/Instagram → aria2c)
+- Downloader per domain (YouTube/TikTok/Bilibili/Facebook/Twitch → internal, Twitter/Reddit/Instagram/SoundCloud → aria2c)
 - **MP4 tidak lagi embed thumbnail** (supaya tidak spam log)
 - **MP3 tetap embed thumbnail** (jadi ada cover art)
-- Cookies per situs (YouTube / Bilibili / TikTok / Instagram / Reddit / Twitter/X)
+- Cookies per situs (YouTube / Bilibili / TikTok / Instagram / Reddit / Twitter/X / SoundCloud / Facebook / Twitch)
 - Pilihan kualitas video (best / 1080p60 / 720p60 / 480p) + subtitle (id/en/ja/none)
 - Mendukung clipboard & argumen URL
 
@@ -20,6 +20,9 @@ Menu interaktif **yt-dlp** untuk Windows, dengan fitur:
   - `instagram.txt`
   - `reddit.txt`
   - `twitter.txt`
+  - `soundcloud.txt`
+  - `facebook.txt`
+  - `twitch.txt`
 
 ---
 

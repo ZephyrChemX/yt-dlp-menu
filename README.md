@@ -9,6 +9,7 @@ Menu interaktif **yt-dlp** untuk Windows, dengan fitur:
 - Pilihan format & kualitas video (MP4/WebM: best / 1080p60 / 720p60 / 480p) + subtitle (id/en/ja/none)
 - Mendukung clipboard & argumen URL
 - Video <1 menit (single) otomatis kualitas terbaik
+- Thumbnail: pilih thumbnail bawaan atau frame dari durasi tertentu
 
 ---
 

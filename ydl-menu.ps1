@@ -5,11 +5,20 @@
 # - Cookies per situs (YouTube, Bilibili, TikTok, Instagram, Reddit, Twitter/X, SoundCloud, Facebook, Twitch)
 # - Pilihan kualitas video + subtitle
 # - Clipboard & argumen -Url
+# - Auto-update yt-dlp & JS runtime support
 
 param(
-  [string]$Url,
-  [switch]$Clipboard
+    [string]$Url,
+    [switch]$Clipboard,
+    [switch]$Update
 )
+
+# ====== Auto-update yt-dlp jika diminta ======
+if ($Update) {
+    Write-Host "[*] Memperbarui yt-dlp..." -ForegroundColor Cyan
+    yt-dlp -U
+    exit 0
+}
 
 function Get-UrlFromClipboard {
     try {
@@ -47,6 +56,12 @@ function Use-Aria2c {
 Clear-Host
 Write-Host "=== yt-dlp Menu Downloader (domain-aware) ===" -ForegroundColor Cyan
 
+# ====== Bersihkan sisa .part file yang sudah > 1 hari ======
+$base = Join-Path $HOME "Downloads/ydl"
+if (Test-Path $base) {
+    Get-ChildItem -Path $base -Recurse -Include "*.part" -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-1) } | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
 # ====== URL input ======
 if ($PSBoundParameters.ContainsKey('Url') -and $Url) {
     $url = $Url
@@ -64,19 +79,18 @@ if ($PSBoundParameters.ContainsKey('Url') -and $Url) {
 if (-not $url) { $url = Read-Host "Tempel link (YouTube/Bilibili/TikTok/Instagram/Reddit/Twitter/SoundCloud/Facebook/Twitch)" }
 if ([string]::IsNullOrWhiteSpace($url)) { Write-Host "URL kosong. Keluar."; exit 1 }
 
-# ====== Base args (tanpa aria2c default) ======
+# ====== Base args ======
 $dlArgs = @(
   "--no-mtime","--embed-metadata","--windows-filenames","--no-restrict-filenames"
 )
 
 # ====== Output base & pemisahan ======
-$base = Join-Path $HOME "Downloads/ydl"
 $dirs = "$base/mp4/single","$base/webm/single","$base/mp3/single","$base/m4a/single","$base/thumb/single"
 $null = New-Item -ItemType Directory -Force -Path $dirs -ErrorAction SilentlyContinue
 
 # ====== Mode ======
 $outputOverride = $null
-$modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","WEBM (video)","MP3 (audio saja)","M4A (audio saja)","Thumbnail saja")
+$modeChoice = Read-Choice "Pilih mode unduhan:" @("MP4 (video)","WEBM (video)","MP3 (audio saja)","M4A (audio saja)","Thumbnail saja","⚡ Quick Download (MP4 Terbaik)")
 
 switch ($modeChoice) {
     1 { # MP4
@@ -185,6 +199,9 @@ switch ($modeChoice) {
             }
         }
     }
+    6 { # Quick Download (MP4 Terbaik)
+        $dlArgs += @("--merge-output-format","mp4","-P","video:$base/mp4/%(playlist_title|single)s/","-f","bv*+ba/b")
+    }
 }
 
 # ====== Template nama file ======
@@ -221,16 +238,13 @@ if (Test-Path $cookiesDir) {
 $domain = $url.ToLower()
 
 if ($domain -match "twitter\.com|x\.com|reddit\.com|instagram\.com|soundcloud\.com") {
-    # File tunggal cenderung cocok aria2c
-    Use-Aria2c -profile "balanced"     # -x4 -s4 -k1M
+    Use-Aria2c -profile "balanced"
 }
 elseif ($domain -match "youtube\.com|youtu\.be|tiktok\.com|bilibili\.com|facebook\.com|fb\.watch|twitch\.tv") {
-    # Segmented (DASH/HLS): internal biasanya lebih cepat/stabil
     $dlArgs += @("--concurrent-fragments","10")
     Write-Host "Downloader: internal (concurrent fragments 10)" -ForegroundColor DarkGray
 }
 else {
-    # Default: internal
     $dlArgs += @("--concurrent-fragments","10")
     Write-Host "Downloader: internal (default)" -ForegroundColor DarkGray
 }
